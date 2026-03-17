@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Enterprise AI Agent v3</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #080c14;
+    color: #b8c4d8;
+    font-family: 'Noto Sans KR', sans-serif;
+    padding: 40px 20px 60px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    color: #e0eaff;
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+  }
+  .header .version {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #ff6b35;
+    letter-spacing: 2px;
+    border: 1px solid #3a2010;
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 2px;
+    background: rgba(255,107,53,0.05);
+    margin-bottom: 8px;
+  }
+  .header .sub {
+    font-size: 11px;
+    color: #3a4560;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+
+  /* ── 공통 노드 ── */
+  .node {
+    border-radius: 6px;
+    padding: 12px 20px;
+    text-align: center;
+    position: relative;
+  }
+  .node-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 3px;
+  }
+  .node-desc { font-size: 10px; color: #5a6880; }
+
+  /* 노드 컬러 */
+  .n-user    { background:#0c1018; border:1px solid #1a2030; }
+  .n-user .node-name { color:#3a4a6a; }
+
+  .n-sup     { background:linear-gradient(135deg,#0c1830,#142448); border:1px solid #1e3a70; box-shadow:0 0 18px rgba(30,58,112,.25); }
+  .n-sup .node-name { color:#5a8aff; }
+
+  .n-plan    { background:linear-gradient(135deg,#101e12,#162a1a); border:1px solid #1e5a28; box-shadow:0 0 18px rgba(30,90,40,.2); }
+  .n-plan .node-name { color:#4adf7a; }
+
+  .n-mem     { background:linear-gradient(135deg,#1c160a,#251e10); border:1px solid #5a4a18; box-shadow:0 0 18px rgba(90,74,24,.2); }
+  .n-mem .node-name { color:#dfb84a; }
+
+  .n-exec    { background:linear-gradient(135deg,#140c22,#1e1232); border:1px solid #4a2a7a; box-shadow:0 0 18px rgba(74,42,122,.25); }
+  .n-exec .node-name { color:#a06aff; }
+
+  .n-critic  { background:linear-gradient(135deg,#200c0c,#301212); border:1px solid #7a2a2a; box-shadow:0 0 18px rgba(122,42,42,.25); }
+  .n-critic .node-name { color:#ff6a6a; }
+
+  .n-fmt     { background:linear-gradient(135deg,#0a1820,#0e2030); border:1px solid #1a5a6a; box-shadow:0 0 18px rgba(26,90,106,.2); }
+  .n-fmt .node-name { color:#4abfcf; }
+
+  .n-end     { background:#0c1018; border:1px solid #1a2030; }
+  .n-end .node-name { color:#2a3a5a; font-size:10px; }
+
+  /* ── 화살표 ── */
+  .arr {
+    display:flex; flex-direction:column; align-items:center;
+    gap:0; margin:0 auto;
+  }
+  .arr-line { width:1px; height:22px; background:linear-gradient(to bottom,#1e2e50,#2a4070); }
+  .arr-head {
+    width:0; height:0;
+    border-left:4px solid transparent;
+    border-right:4px solid transparent;
+    border-top:6px solid #2a4070;
+  }
+  .arr-label {
+    font-family:'JetBrains Mono',monospace;
+    font-size:8px; color:#2a3a58;
+    margin:2px 0;
+  }
+
+  /* ── 메인 컬럼 ── */
+  .main-col {
+    display:flex; flex-direction:column; align-items:center; gap:0;
+  }
+  .main-node-wrap { width:300px; }
+
+  /* ── NEW 뱃지 ── */
+  .badge-new {
+    font-family:'JetBrains Mono',monospace;
+    font-size:8px; color:#ff6b35;
+    border:1px solid #5a2a10;
+    background:rgba(255,107,53,.08);
+    padding:1px 6px; border-radius:2px;
+    margin-left:6px; vertical-align:middle;
+  }
+  .badge-upd {
+    font-family:'JetBrains Mono',monospace;
+    font-size:8px; color:#dfb84a;
+    border:1px solid #5a4010;
+    background:rgba(223,184,74,.08);
+    padding:1px 6px; border-radius:2px;
+    margin-left:6px; vertical-align:middle;
+  }
+
+  /* ── 변경 사항 인라인 ── */
+  .change-pill {
+    font-family:'JetBrains Mono',monospace;
+    font-size:8px; padding:2px 8px;
+    border-radius:2px; margin:3px 2px; display:inline-block;
+  }
+  .cp-guard { background:rgba(74,223,122,.08); color:#4adf7a; border:1px solid #1e5a28; }
+  .cp-reflect { background:rgba(255,106,106,.08); color:#ff6a6a; border:1px solid #7a2a2a; }
+  .cp-early { background:rgba(255,107,53,.08); color:#ff6b35; border:1px solid #5a2a10; }
+  .cp-schema { background:rgba(223,184,74,.08); color:#dfb84a; border:1px solid #5a4010; }
+  .cp-strategy { background:rgba(160,106,255,.08); color:#a06aff; border:1px solid #4a2a7a; }
+
+  /* ── 툴 그리드 ── */
+  .tool-grid {
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    width:100%;
+    margin:16px 0;
+  }
+  .tg {
+    border-radius:6px; padding:12px;
+    border:1px solid;
+  }
+  .tg-excel { background:rgba(74,42,122,.08); border-color:#3a1a6a; }
+  .tg-pdf   { background:rgba(30,90,40,.08);  border-color:#1a4a22; }
+  .tg-mes   { background:rgba(20,36,72,.08);  border-color:#162040; }
+  .tg-rag   { background:rgba(90,74,24,.08);  border-color:#3a3010; }
+
+  .tg-title {
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px; font-weight:700;
+    letter-spacing:1px; margin-bottom:8px;
+  }
+  .tg-excel .tg-title { color:#a06aff; }
+  .tg-pdf   .tg-title { color:#4adf7a; }
+  .tg-mes   .tg-title { color:#5a8aff; }
+  .tg-rag   .tg-title { color:#dfb84a; }
+
+  .ti {
+    font-family:'JetBrains Mono',monospace;
+    font-size:8px; color:#4a5a78;
+    padding:4px 6px; margin-bottom:3px;
+    border-radius:3px;
+    background:rgba(255,255,255,.02);
+    border-left:2px solid;
+    line-height:1.6;
+  }
+  .tg-excel .ti { border-color:#4a2a7a; }
+  .tg-pdf   .ti { border-color:#1e5a28; }
+  .tg-mes   .ti { border-color:#162040; }
+  .tg-rag   .ti { border-color:#3a3010; }
+  .ti.required { color:#7a8aaa; }
+  .ti.optional { border-style:dashed; color:#3a4a60; }
+  .ti .seq { color:#2a3a50; margin-right:3px; }
+
+  /* ── Critic 루프 박스 ── */
+  .critic-detail {
+    width:100%;
+    padding:16px;
+    border-radius:6px;
+    background:rgba(122,42,42,.06);
+    border:1px solid #3a1a1a;
+    margin:12px 0;
+  }
+  .cd-title {
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px; color:#7a2a2a;
+    letter-spacing:2px; margin-bottom:10px;
+  }
+  .cd-row {
+    display:flex; gap:8px; align-items:flex-start;
+    margin-bottom:6px;
+  }
+  .cd-label {
+    font-family:'JetBrains Mono',monospace;
+    font-size:8px; color:#3a1a1a;
+    min-width:80px; padding-top:2px;
+  }
+  .cd-val {
+    font-size:9px; color:#6a3a3a; line-height:1.6;
+  }
+
+  /* ── Retry 전략 테이블 ── */
+  .retry-table {
+    width:100%; border-collapse:collapse;
+    font-size:9px; margin-top:8px;
+  }
+  .retry-table th {
+    font-family:'JetBrains Mono',monospace;
+    background:rgba(74,42,122,.15);
+    color:#6a4aaa; padding:5px 8px;
+    text-align:left; border-bottom:1px solid #2a1a4a;
+  }
+  .retry-table td {
+    padding:5px 8px; border-bottom:1px solid #1a1228;
+    color:#4a3a6a;
+  }
+  .retry-table tr:hover td { background:rgba(74,42,122,.06); }
+
+  /* ── Schema 박스 ── */
+  .schema-box {
+    width:100%;
+    padding:16px;
+    border-radius:6px;
+    background:rgba(90,74,24,.06);
+    border:1px solid #3a3010;
+    margin:20px 0 0;
+  }
+  .sb-title {
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px; color:#5a4a18;
+    letter-spacing:2px; margin-bottom:12px;
+  }
+  .sb-flow {
+    display:flex; align-items:center;
+    gap:8px; flex-wrap:wrap;
+  }
+  .sb-step {
+    padding:8px 12px; border-radius:4px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:8px; text-align:center; line-height:1.6;
+    min-width:110px;
+  }
+  .sb-match  { background:rgba(90,74,24,.15); border:1px solid #5a4a18; color:#dfb84a; }
+  .sb-hit    { background:rgba(74,42,122,.15); border:1px solid #4a2a7a; color:#a06aff; }
+  .sb-miss   { background:rgba(30,90,40,.1);   border:1px dashed #1e5a28; color:#4adf7a; }
+  .sb-arrow  { color:#2a3a50; font-size:14px; }
+
+  /* ── 변경 요약 ── */
+  .diff-table {
+    width:100%; border-collapse:collapse;
+    font-size:9px; margin-top:16px;
+  }
+  .diff-table th {
+    font-family:'JetBrains Mono',monospace;
+    background:#0c1018; color:#2a3a58;
+    padding:6px 10px; text-align:left;
+    border-bottom:1px solid #1a2030;
+  }
+  .diff-table td {
+    padding:6px 10px; border-bottom:1px solid #0e1420;
+  }
+  .diff-table .v2 { color:#3a4a60; }
+  .diff-table .v3 { color:#5a8aff; }
+  .diff-table .item { color:#4a5a78; font-family:'JetBrains Mono',monospace; }
+
+  .section-title {
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px; color:#1e2a40;
+    letter-spacing:3px;
+    text-align:center;
+    margin:28px 0 14px;
+    border-top:1px solid #0e1420;
+    padding-top:20px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="version">v3.0 — PRODUCTION HARDENED</div>
+    <h1>🏭 ENTERPRISE AI AGENT</h1>
+    <div class="sub">LangGraph + MCP · Plan HardGuard · Self-Reflection · Schema Registry</div>
+  </div>
+
+  <div class="main-col">
+
+    <!-- USER -->
+    <div class="main-node-wrap">
+      <div class="node n-user">
+        <div class="node-name">USER INPUT</div>
+        <div class="node-desc">질문 + 파일 첨부</div>
+      </div>
+    </div>
+    <div class="arr"><div class="arr-line"></div><div class="arr-head"></div></div>
+
+    <!-- SUPERVISOR -->
+    <div class="main-node-wrap">
+      <div class="node n-sup">
+        <div class="node-name">[ SUPERVISOR ]</div>
+        <div class="node-desc">의도 파악 · 라우팅</div>
+      </div>
+    </div>
+    <div class="arr"><div class="arr-line"></div><div class="arr-head"></div></div>
+
+    <!-- PLANNER -->
+    <div class="main-node-wrap">
+      <div class="node n-plan">
+        <div class="node-name">[ PLANNER ] <span class="badge-upd">UPDATED</span></div>
+        <div class="node-desc">실행 계획 수립</div>
+        <div style="margin-top:6px">
+          <span class="change-pill cp-guard">코드 레벨 하드가드</span>
+          <span class="change-pill cp-guard">선행툴 순서 강제</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- HARDGUARD 설명 -->
+    <div style="width:100%;padding:10px 14px;border-radius:4px;background:rgba(74,223,122,.04);border:1px dashed #1e5a28;margin:8px 0;font-size:9px;color:#2a5a30;font-family:'JetBrains Mono',monospace;line-height:1.8">
+      ✓ 존재하지 않는 툴 사용 시 즉시 예외<br>
+      ✓ ExcelStructureParser 없이 분석툴 실행 불가<br>
+      ✓ 검증 3회 실패 → 안전 기본 플랜으로 폴백
+    </div>
+
+    <div class="arr"><div class="arr-line"></div><div class="arr-head"></div></div>
+
+    <!-- MEMORY -->
+    <div class="main-node-wrap">
+      <div class="node n-mem">
+        <div class="node-name">[ MEMORY ] <span class="badge-upd">UPDATED</span></div>
+        <div class="node-desc">캐시 확인 · 스키마 매칭</div>
+        <div style="margin-top:6px">
+          <span class="change-pill cp-schema">Schema Registry 연동</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arr"><div class="arr-line"></div><div class="arr-head"></div></div>
+
+    <!-- EXECUTOR -->
+    <div class="main-node-wrap">
+      <div class="node n-exec">
+        <div class="node-name">[ EXECUTOR ] <span class="badge-upd">UPDATED</span></div>
+        <div class="node-desc">계획 순서대로 툴 실행</div>
+        <div style="margin-top:6px">
+          <span class="change-pill cp-strategy">재시도마다 전략 변경</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOOL GRID -->
+    <div class="tool-grid">
+      <div class="tg tg-excel">
+        <div class="tg-title">📊 EXCEL</div>
+        <div class="ti required"><span class="seq">1.</span>ExcelStructureParser</div>
+        <div class="ti required"><span class="seq">2.</span>SheetMapper</div>
+        <div class="ti required"><span class="seq">3.</span>HeaderDetector</div>
+        <div class="ti required"><span class="seq">4.</span>DataTypeInferrer</div>
+        <div class="ti optional"><span class="seq">5.</span>CrossTableFlattener</div>
+        <div class="ti optional"><span class="seq">6.</span>ExcelCompareTool</div>
+        <div class="ti optional"><span class="seq">7.</span>OutlierDetector</div>
+        <div class="ti optional"><span class="seq">8.</span>TrendAnalyzer</div>
+      </div>
+      <div class="tg tg-pdf">
+        <div class="tg-title">📄 PDF</div>
+        <div class="ti required"><span class="seq">1.</span>PDFTextExtractor</div>
+        <div class="ti optional"><span class="seq">2.</span>PDFVisionAnalyzer</div>
+      </div>
+      <div class="tg tg-mes">
+        <div class="tg-title">🏭 MES</div>
+        <div class="ti required"><span class="seq">1.</span>MESQueryTool</div>
+        <div class="ti required"><span class="seq">2.</span>MESDataFormatter</div>
+        <div class="ti optional"><span class="seq">3.</span>ReportGenerator</div>
+      </div>
+      <div class="tg tg-rag">
+        <div class="tg-title">💬 RAG</div>
+        <div class="ti required"><span class="seq">1.</span>DocumentIndexer</div>
+        <div class="ti required"><span class="seq">2.</span>DocumentRetriever</div>
+      </div>
+    </div>
+
+    <!-- Retry 전략 테이블 -->
+    <div style="width:100%;padding:14px;border-radius:6px;background:rgba(74,42,122,.06);border:1px solid #2a1a4a;margin-bottom:12px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#4a2a7a;letter-spacing:2px;margin-bottom:8px;">↺ RETRY STRATEGY — 재시도마다 전략 변경</div>
+      <table class="retry-table">
+        <tr><th>시도</th><th>전략</th><th>내용</th></tr>
+        <tr><td>1회차</td><td>adjust_parameters</td><td>Critic 피드백 기반 파라미터 재조정</td></tr>
+        <tr><td>2회차</td><td>try_vision_fallback</td><td>엑셀→이미지 변환 후 Vision 모델 분석</td></tr>
+        <tr><td>3회차</td><td>aggregate_only</td><td>원본 분석 포기, 집계 결과만 반환</td></tr>
+      </table>
+    </div>
+
+    <div class="arr"><div class="arr-line"></div><div class="arr-head"></div></div>
+
+    <!-- CRITIC -->
+    <div class="main-node-wrap">
+      <div class="node n-critic">
+        <div class="node-name">[ CRITIC · REFLECTION ] <span class="badge-upd">UPDATED</span></div>
+        <div class="node-desc">품질 평가 · 원인 분류 · 수정 지침 생성</div>
+        <div style="margin-top:6px">
+          <span class="change-pill cp-reflect">Self-Reflection 강화</span>
+          <span class="change-pill cp-early">Early Stopping</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Critic 상세 -->
+    <div class="critic-detail">
+      <div class="cd-title">CRITIC OUTPUT 구조</div>
+      <div class="cd-row"><div class="cd-label">root_cause</div><div class="cd-val">header_detection_failed · data_corrupted · wrong_sheet · incomplete_analysis ...</div></div>
+      <div class="cd-row"><div class="cd-label">fix_instruction</div><div class="cd-val">"HeaderDetector를 row=3부터 재실행" (구체적 지침, "다시 해" 금지)</div></div>
+      <div class="cd-row"><div class="cd-label">tools_to_rerun</div><div class="cd-val">전체 재실행 X → 실패한 툴부터만 ["HeaderDetector", "DataTypeInferrer"]</div></div>
+      <div class="cd-row"><div class="cd-label">early_stop</div><div class="cd-val">data_corrupted · file_not_readable 등 → 즉시 종료, 재실행 안 함</div></div>
+    </div>
+
+    <!-- Conditional -->
+    <div style="display:flex;gap:24px;align-items:center;margin:10px 0;justify-content:center;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;padding:4px 12px;border-radius:3px;background:rgba(74,223,122,.08);color:#4adf7a;border:1px solid #1e5a28;">PASS ≥ 0.7 → Formatter</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;padding:4px 12px;border-radius:3px;background:rgba(255,107,53,.08);color:#ff6b35;border:1px solid #5a2a10;">EARLY STOP → Formatter</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;padding:4px 12px;border-radius:3px;background:rgba(160,106,255,.08);color:#a06aff;border:1px solid #4a2a7a;">RETRY → Executor (전략변경)</div>
+    </div>
+
+    <div class="arr"><div class="arr-line"></div><div class="arr-head"></div></div>
+
+    <!-- FORMATTER -->
+    <div class="main-node-wrap">
+      <div class="node n-fmt">
+        <div class="node-name">[ FORMATTER ]</div>
+        <div class="node-desc">출력 형식 통일 · 텍스트 / 표 / 보고서</div>
+      </div>
+    </div>
+    <div class="arr"><div class="arr-line"></div><div class="arr-head"></div></div>
+
+    <!-- END -->
+    <div class="main-node-wrap">
+      <div class="node n-end">
+        <div class="node-name">FINAL ANSWER</div>
+        <div class="node-desc">최종 답변</div>
+      </div>
+    </div>
+
+    <!-- SCHEMA REGISTRY -->
+    <div class="section-title">📋 SCHEMA REGISTRY — NEW</div>
+    <div class="schema-box">
+      <div class="sb-title">엑셀 양식 사전 등록 → 구조 추론 스킵</div>
+      <div class="sb-flow">
+        <div class="sb-step sb-match">엑셀 파싱<br>(ExcelStructureParser)</div>
+        <div class="sb-arrow">→</div>
+        <div class="sb-step sb-match">Schema Registry<br>매칭 시도<br>(유사도 ≥ 0.8)</div>
+        <div class="sb-arrow">→</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="sb-step sb-hit">✓ HIT<br>등록 스키마 사용<br>추론 스킵</div>
+          <div class="sb-step sb-miss">✗ MISS<br>기존 추론 방식<br>폴백</div>
+        </div>
+        <div class="sb-arrow">→</div>
+        <div class="sb-step sb-match">등록 파일 예시<br>measurement_v1.json<br>mes_output_v2.json</div>
+      </div>
+    </div>
+
+    <!-- v2 vs v3 -->
+    <div class="section-title">v2 → v3 변경 요약</div>
+    <table class="diff-table">
+      <tr><th>항목</th><th>v2</th><th>v3</th></tr>
+      <tr>
+        <td class="item">Plan 검증</td>
+        <td class="v2">❌ 없음</td>
+        <td class="v3">✅ 코드 레벨 하드가드 + 안전 폴백</td>
+      </tr>
+      <tr>
+        <td class="item">Critic 피드백</td>
+        <td class="v2">❌ "다시 해"</td>
+        <td class="v3">✅ 원인분류 · 수정지침 · 재실행툴 명시</td>
+      </tr>
+      <tr>
+        <td class="item">Early Stop</td>
+        <td class="v2">❌ 3번 무조건 재실행</td>
+        <td class="v3">✅ 데이터 오염 시 즉시 종료</td>
+      </tr>
+      <tr>
+        <td class="item">재시도 전략</td>
+        <td class="v2">❌ 동일 방법 반복</td>
+        <td class="v3">✅ 1차파라미터조정 → 2차Vision → 3차집계만</td>
+      </tr>
+      <tr>
+        <td class="item">엑셀 스키마</td>
+        <td class="v2">❌ 매번 추론</td>
+        <td class="v3">✅ 사전 등록 + 유사도 매칭 + 캐시</td>
+      </tr>
+    </table>
+
+  </div>
+</div>
+</body>
+</html>

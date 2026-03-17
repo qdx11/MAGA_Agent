@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enterprise AI Agent v4.0 Architecture</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242736;
+    --border: #2e3245;
+    --text: #e4e6f0;
+    --text-dim: #8b8fa3;
+    --accent: #6c8cff;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --orange: #fb923c;
+    --cyan: #22d3ee;
+    --pink: #f472b6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    padding: 40px 20px;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+
+  header h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+
+  header .version {
+    display: inline-block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 0.85rem;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  header p {
+    color: var(--text-dim);
+    font-size: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* Section */
+  section {
+    margin-bottom: 60px;
+  }
+
+  section h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  section h2 .icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+  }
+
+  /* Change Log */
+  .changes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+
+  .change-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    transition: border-color 0.2s;
+  }
+
+  .change-item:hover {
+    border-color: var(--accent);
+  }
+
+  .change-num {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .change-text {
+    font-size: 0.9rem;
+  }
+
+  .change-text strong {
+    color: var(--text);
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .change-text span {
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+
+  /* Graph Flow */
+  .graph-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 20px;
+    overflow-x: auto;
+  }
+
+  .graph-flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    min-width: 700px;
+  }
+
+  .graph-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    position: relative;
+  }
+
+  .node {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 20px;
+    min-width: 150px;
+    text-align: center;
+    position: relative;
+    transition: all 0.2s;
+    cursor: default;
+  }
+
+  .node:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+
+  .node.llm-yes { border-color: var(--accent); }
+  .node.llm-no  { border-color: var(--green); }
+  .node.end-node { border-color: var(--pink); }
+
+  .node-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+  }
+
+  .node-desc {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+
+  .node-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: #fff;
+  }
+
+  .badge-llm { background: var(--accent); }
+  .badge-code { background: var(--green); }
+  .badge-end { background: var(--pink); }
+
+  .arrow-down {
+    width: 2px;
+    height: 30px;
+    background: var(--border);
+    position: relative;
+    margin: 0 auto;
+  }
+
+  .arrow-down::after {
+    content: '▼';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    color: var(--text-dim);
+  }
+
+  .arrow-right {
+    width: 40px;
+    height: 2px;
+    background: var(--border);
+    position: relative;
+  }
+
+  .arrow-right::after {
+    content: '▶';
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 8px;
+    color: var(--text-dim);
+  }
+
+  /* Loop section */
+  .loop-box {
+    border: 2px dashed var(--yellow);
+    border-radius: 16px;
+    padding: 30px 20px;
+    position: relative;
+    margin: 10px 0;
+  }
+
+  .loop-label {
+    position: absolute;
+    top: -12px;
+    left: 20px;
+    background: var(--bg);
+    padding: 0 10px;
+    font-size: 0.8rem;
+    color: var(--yellow);
+    font-weight: 600;
+  }
+
+  .branch-box {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .branch-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 0.8rem;
+    text-align: center;
+    min-width: 120px;
+  }
+
+  .branch-item .label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+  }
+
+  .branch-item .cond {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+  }
+
+  .branch-item.b-green { border-color: var(--green); }
+  .branch-item.b-yellow { border-color: var(--yellow); }
+  .branch-item.b-red { border-color: var(--red); }
+  .branch-item.b-blue { border-color: var(--accent); }
+
+  /* LLM Node Map */
+  .node-map {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 12px;
+  }
+
+  .map-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .map-card .indicator {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+
+  .map-card .indicator.llm {
+    background: rgba(108, 140, 255, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(108, 140, 255, 0.3);
+  }
+
+  .map-card .indicator.code {
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--green);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+  }
+
+  .map-card .info h4 {
+    font-size: 0.95rem;
+    margin-bottom: 2px;
+  }
+
+  .map-card .info p {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  /* File Tree */
+  .file-tree {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+
+  .file-tree .dir  { color: var(--accent); }
+  .file-tree .file { color: var(--text-dim); }
+  .file-tree .new  { color: var(--green); }
+  .file-tree .tag  { color: var(--text-dim); font-size: 0.7rem; opacity: 0.7; }
+
+  /* Comparison Table */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+
+  .compare-table th {
+    background: var(--surface2);
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .compare-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .compare-table tr:hover td {
+    background: var(--surface);
+  }
+
+  .compare-table .v3 { color: var(--red); }
+  .compare-table .v4 { color: var(--green); }
+
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  /* Layer diagram */
+  .layers {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .layer {
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    position: relative;
+  }
+
+  .layer:first-child { border-radius: 12px 12px 0 0; }
+  .layer:last-child  { border-radius: 0 0 12px 12px; }
+
+  .layer-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .layer-name .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .layer-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .layer-chip {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+
+  .layer.l-api    { background: rgba(108, 140, 255, 0.05); }
+  .layer.l-graph  { background: rgba(167, 139, 250, 0.05); }
+  .layer.l-tool   { background: rgba(52, 211, 153, 0.05); }
+  .layer.l-infra  { background: rgba(251, 191, 36, 0.05); }
+
+  /* Retry Strategy */
+  .strategy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+  }
+
+  .strategy-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+
+  .strategy-card h4 {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+
+  .strategy-card .strat-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .strategy-card .strat-list li {
+    padding: 4px 0;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .strategy-card .strat-list li .num {
+    background: var(--surface2);
+    border-radius: 4px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* Resilience */
+  .resilience-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .r-step {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    text-align: center;
+    min-width: 120px;
+  }
+
+  .r-step .r-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+  }
+
+  .r-step .r-desc {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  .r-arrow {
+    font-size: 1.2rem;
+    color: var(--text-dim);
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 768px) {
+    header h1 { font-size: 1.6rem; }
+    .graph-container { padding: 20px 10px; }
+    .node { min-width: 110px; padding: 10px 14px; }
+    .node-name { font-size: 0.82rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="version">LangGraph v4 Architecture</div>
+    <h1>Enterprise AI Agent v4.0</h1>
+    <p>
+      Tool Registry 동적화 · Step Guard · Re-Planning · Observability · LLM Resilience
+    </p>
+  </header>
+
+  <!-- v3 → v4 Changes -->
+  <section>
+    <h2><span class="icon" style="background:rgba(108,140,255,0.15);">△</span> v3 → v4 핵심 변경점</h2>
+    <div class="changes">
+      <div class="change-item">
+        <div class="change-num">1</div>
+        <div class="change-text"><strong>Tool Registry 동적화</strong><span>하드코딩 제거 → YAML 기반 자동 생성</span></div>
+      </div>
+      <div class="change-item">
+        <div class="change-num">2</div>
+        <div class="change-text"><strong>Step Guard</strong><span>매 스텝 후 즉시 검증 (전체 실행 후 X)</span></div>
+      </div>
+      <div class="change-item">
+        <div class="change-num">3</div>
+        <div class="change-text"><strong>Re-Planning</strong><span>중간 실패 시 남은 플랜만 재구성</span></div>
+      </div>
+      <div class="change-item">
+        <div class="change-num">4</div>
+        <div class="change-text"><strong>Retry 전략 일반화</strong><span>툴 그룹/에러별 전략 매핑</span></div>
+      </div>
+      <div class="change-item">
+        <div class="change-num">5</div>
+        <div class="change-text"><strong>State 크기 관리</strong><span>sliding window + 요약</span></div>
+      </div>
+      <div class="change-item">
+        <div class="change-num">6</div>
+        <div class="change-text"><strong>Observability</strong><span>노드별 Tracer (로깅/타이밍)</span></div>
+      </div>
+      <div class="change-item">
+        <div class="change-num">7</div>
+        <div class="change-text"><strong>멀티유저/권한</strong><span>UserContext + ACL 실제 적용</span></div>
+      </div>
+      <div class="change-item">
+        <div class="change-num">8</div>
+        <div class="change-text"><strong>LLM 장애 대응</strong><span>CircuitBreaker + fallback LLM</span></div>
+      </div>
+      <div class="change-item">
+        <div class="change-num">9</div>
+        <div class="change-text"><strong>MCP 마이그레이션</strong><span>in-process 우선, 점진적 분리</span></div>
+      </div>
+      <div class="change-item">
+        <div class="change-num">10</div>
+        <div class="change-text"><strong>테스트 전략</strong><span>MockLLM + 노드 단위 테스트</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Layer Architecture -->
+  <section>
+    <h2><span class="icon" style="background:rgba(167,139,250,0.15);">◇</span> 레이어 구조</h2>
+    <div class="layers">
+      <div class="layer l-api">
+        <div class="layer-name"><span class="dot" style="background:var(--accent);"></span> API / Interface Layer</div>
+        <div class="layer-content">
+          <div class="layer-chip">FastAPI / Streamlit</div>
+          <div class="layer-chip">UserContext 주입</div>
+          <div class="layer-chip">Session 관리</div>
+        </div>
+      </div>
+      <div class="layer l-graph">
+        <div class="layer-name"><span class="dot" style="background:var(--accent2);"></span> Agent Graph Layer (LangGraph)</div>
+        <div class="layer-content">
+          <div class="layer-chip">Supervisor</div>
+          <div class="layer-chip">Planner + 하드가드</div>
+          <div class="layer-chip">Memory</div>
+          <div class="layer-chip">Executor</div>
+          <div class="layer-chip">Step Guard</div>
+          <div class="layer-chip">Replanner</div>
+          <div class="layer-chip">Critic</div>
+          <div class="layer-chip">Formatter</div>
+        </div>
+      </div>
+      <div class="layer l-tool">
+        <div class="layer-name"><span class="dot" style="background:var(--green);"></span> Tool Layer (MCP-ready)</div>
+        <div class="layer-content">
+          <div class="layer-chip">Tool Registry (YAML)</div>
+          <div class="layer-chip">Excel Tools</div>
+          <div class="layer-chip">MES Tools</div>
+          <div class="layer-chip">RAG Tools</div>
+          <div class="layer-chip">Schema Registry</div>
+        </div>
+      </div>
+      <div class="layer l-infra">
+        <div class="layer-name"><span class="dot" style="background:var(--yellow);"></span> Infrastructure</div>
+        <div class="layer-content">
+          <div class="layer-chip">ResilientLLMClient</div>
+          <div class="layer-chip">CircuitBreaker</div>
+          <div class="layer-chip">Tracer / Logger</div>
+          <div class="layer-chip">Auth / ACL</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Graph Flow -->
+  <section>
+    <h2><span class="icon" style="background:rgba(52,211,153,0.15);">⟳</span> 그래프 흐름도</h2>
+    <div class="graph-container">
+      <div class="graph-flow">
+
+        <!-- Supervisor -->
+        <div class="graph-row">
+          <div class="node llm-yes">
+            <span class="node-badge badge-llm">LLM</span>
+            <div class="node-name">Supervisor</div>
+            <div class="node-desc">자연어 → intent 추출</div>
+          </div>
+        </div>
+        <div class="arrow-down"></div>
+
+        <!-- Planner -->
+        <div class="graph-row">
+          <div class="node llm-yes">
+            <span class="node-badge badge-llm">LLM</span>
+            <div class="node-name">Planner</div>
+            <div class="node-desc">플랜 생성 + 하드가드 (Registry 기반)</div>
+          </div>
+        </div>
+        <div class="arrow-down"></div>
+
+        <!-- Memory -->
+        <div class="graph-row">
+          <div class="node llm-no">
+            <span class="node-badge badge-code">CODE</span>
+            <div class="node-name">Memory</div>
+            <div class="node-desc">캐시 조회 · 스키마 매칭</div>
+          </div>
+        </div>
+        <div class="arrow-down"></div>
+
+        <!-- Step Loop -->
+        <div class="loop-box">
+          <div class="loop-label">⟳ Step Execution Loop</div>
+
+          <!-- Executor -->
+          <div class="graph-row" style="justify-content:center;">
+            <div class="node llm-no">
+              <span class="node-badge badge-code">CODE</span>
+              <div class="node-name">Executor</div>
+              <div class="node-desc">1 스텝 실행 → Tool 호출</div>
+            </div>
+          </div>
+          <div class="arrow-down"></div>
+
+          <!-- Step Guard -->
+          <div class="graph-row" style="justify-content:center;">
+            <div class="node llm-no">
+              <span class="node-badge badge-code">CODE</span>
+              <div class="node-name">Step Guard</div>
+              <div class="node-desc">스텝 결과 즉시 검증 · 분기 결정</div>
+            </div>
+          </div>
+
+          <!-- Branches -->
+          <div style="margin-top:16px;">
+            <div class="branch-box">
+              <div class="branch-item b-green">
+                <div class="label" style="color:var(--green);">→ Executor</div>
+                <div class="cond">다음 스텝 계속</div>
+              </div>
+              <div class="branch-item b-yellow">
+                <div class="label" style="color:var(--yellow);">→ Replanner</div>
+                <div class="cond">중간 실패 → 재계획</div>
+              </div>
+              <div class="branch-item b-blue">
+                <div class="label" style="color:var(--accent);">→ Critic</div>
+                <div class="cond">전체 완료 → 최종 평가</div>
+              </div>
+              <div class="branch-item b-red">
+                <div class="label" style="color:var(--red);">→ Formatter</div>
+                <div class="cond">early_stop → 즉시 종료</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow-down"></div>
+
+        <!-- Replanner / Critic row -->
+        <div class="graph-row" style="gap: 20px;">
+          <div class="node llm-yes">
+            <span class="node-badge badge-llm">LLM</span>
+            <div class="node-name">Replanner</div>
+            <div class="node-desc">실패 기반 남은 플랜 재구성</div>
+          </div>
+          <div style="width:40px;"></div>
+          <div class="node llm-yes">
+            <span class="node-badge badge-llm">LLM</span>
+            <div class="node-name">Critic</div>
+            <div class="node-desc">최종 품질 평가 · Self-Reflection</div>
+          </div>
+        </div>
+
+        <div class="arrow-down"></div>
+
+        <!-- Formatter -->
+        <div class="graph-row">
+          <div class="node llm-yes">
+            <span class="node-badge badge-llm">LLM</span>
+            <div class="node-name">Formatter</div>
+            <div class="node-desc">최종 자연어 답변 생성</div>
+          </div>
+        </div>
+        <div class="arrow-down"></div>
+
+        <!-- END -->
+        <div class="graph-row">
+          <div class="node end-node">
+            <span class="node-badge badge-end">END</span>
+            <div class="node-name">END</div>
+            <div class="node-desc">사용자에게 응답 전달</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- LLM Node Map -->
+  <section>
+    <h2><span class="icon" style="background:rgba(108,140,255,0.15);">◉</span> LLM 사용 노드 맵</h2>
+    <div class="node-map">
+      <div class="map-card">
+        <div class="indicator llm">LLM</div>
+        <div class="info"><h4>Supervisor</h4><p>자연어 요청 → intent, files 추출</p></div>
+      </div>
+      <div class="map-card">
+        <div class="indicator llm">LLM</div>
+        <div class="info"><h4>Planner</h4><p>intent + 툴 카탈로그 → 실행 플랜(JSON)</p></div>
+      </div>
+      <div class="map-card">
+        <div class="indicator code">{ }</div>
+        <div class="info"><h4>Memory</h4><p>캐시 히트 확인, 스키마 매칭 (코드)</p></div>
+      </div>
+      <div class="map-card">
+        <div class="indicator code">{ }</div>
+        <div class="info"><h4>Executor</h4><p>플랜 → Tool 호출 (코드, LLM 없음)</p></div>
+      </div>
+      <div class="map-card">
+        <div class="indicator code">{ }</div>
+        <div class="info"><h4>Step Guard</h4><p>status 코드 기반 분기 (코드)</p></div>
+      </div>
+      <div class="map-card">
+        <div class="indicator llm">LLM</div>
+        <div class="info"><h4>Replanner</h4><p>실패 정보 → 남은 플랜 재구성</p></div>
+      </div>
+      <div class="map-card">
+        <div class="indicator llm">LLM</div>
+        <div class="info"><h4>Critic</h4><p>전체 결과 → 품질 점수 + 피드백</p></div>
+      </div>
+      <div class="map-card">
+        <div class="indicator llm">LLM</div>
+        <div class="info"><h4>Formatter</h4><p>결과 → 사용자용 자연어 답변</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tool Registry -->
+  <section>
+    <h2><span class="icon" style="background:rgba(52,211,153,0.15);">⚙</span> Tool Registry (동적 관리)</h2>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div>
+        <h3 style="font-size:1rem; margin-bottom:12px; color:var(--red);">v3: 하드코딩</h3>
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; font-family:monospace; font-size:0.8rem; color:var(--text-dim);">
+          <pre style="white-space:pre-wrap;">AVAILABLE_TOOLS = {
+    "excel": ["ExcelStructureParser", ...],
+    "mes": ["MESQueryTool", ...],
+}
+
+PREREQUISITE_RULES = {
+    "HeaderDetector": ["ExcelStructureParser"],
+    ...
+}</pre>
+          <div style="color:var(--red); margin-top:8px; font-family:sans-serif;">
+            ⚠ 새 Tool 추가 시 코드 직접 수정 필요
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:1rem; margin-bottom:12px; color:var(--green);">v4: YAML + Auto-generate</h3>
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; font-family:monospace; font-size:0.8rem; color:var(--text-dim);">
+          <pre style="white-space:pre-wrap;">tools:
+  - name: OutlierDetector
+    group: excel
+    prerequisites:
+      - ExcelStructureParser
+      - HeaderDetector
+    retry_strategies:
+      - adjust_parameters
+      - aggregate_only
+    entry_point: "tools.excel..."</pre>
+          <div style="color:var(--green); margin-top:8px; font-family:sans-serif;">
+            ✓ YAML 등록만으로 Planner/Executor 자동 반영
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Retry Strategy -->
+  <section>
+    <h2><span class="icon" style="background:rgba(251,191,36,0.15);">↻</span> Retry 전략 (툴별 개별 지정)</h2>
+    <div class="strategy-grid">
+      <div class="strategy-card">
+        <h4>Excel 분석 Tools</h4>
+        <ul class="strat-list">
+          <li><span class="num">1</span> adjust_parameters — 헤더행/시트 재지정</li>
+          <li><span class="num">2</span> try_vision_fallback — 이미지 변환 후 Vision</li>
+          <li><span class="num">3</span> aggregate_only — 원본 포기, 집계만</li>
+        </ul>
+      </div>
+      <div class="strategy-card">
+        <h4>MES 조회 Tools</h4>
+        <ul class="strat-list">
+          <li><span class="num">1</span> adjust_parameters — 날짜/라인 범위 조정</li>
+          <li><span class="num">2</span> reduce_scope — 기간 축소 후 재조회</li>
+        </ul>
+      </div>
+      <div class="strategy-card">
+        <h4>RAG Tools</h4>
+        <ul class="strat-list">
+          <li><span class="num">1</span> adjust_parameters — 쿼리 재작성</li>
+          <li><span class="num">2</span> expand_search — 검색 범위 확장</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:12px; color:var(--text-dim); font-size:0.82rem; text-align:center;">
+      * 각 Tool의 retry_strategies는 config/tools.yaml에서 관리. 코드 수정 없음.
+    </div>
+  </section>
+
+  <!-- LLM Resilience -->
+  <section>
+    <h2><span class="icon" style="background:rgba(248,113,113,0.15);">⛑</span> LLM 장애 대응</h2>
+    <div class="resilience-flow">
+      <div class="r-step">
+        <div class="r-title">Request</div>
+        <div class="r-desc">LLM 호출</div>
+      </div>
+      <div class="r-arrow">→</div>
+      <div class="r-step">
+        <div class="r-title" style="color:var(--yellow);">Timeout</div>
+        <div class="r-desc">30s per request</div>
+      </div>
+      <div class="r-arrow">→</div>
+      <div class="r-step">
+        <div class="r-title" style="color:var(--orange);">Retry</div>
+        <div class="r-desc">exponential backoff<br>max 2회</div>
+      </div>
+      <div class="r-arrow">→</div>
+      <div class="r-step">
+        <div class="r-title" style="color:var(--red);">Circuit Breaker</div>
+        <div class="r-desc">연속 3회 실패 →<br>30s 차단</div>
+      </div>
+      <div class="r-arrow">→</div>
+      <div class="r-step">
+        <div class="r-title" style="color:var(--cyan);">Fallback LLM</div>
+        <div class="r-desc">대체 모델/엔드포인트</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- File Structure -->
+  <section>
+    <h2><span class="icon" style="background:rgba(167,139,250,0.15);">📁</span> 파일 구조</h2>
+    <div class="file-tree">
+<span class="dir">enterprise_agent/</span>
+├── <span class="dir">core/</span>
+│   ├── <span class="new">llm_client.py</span>          <span class="tag">← NEW: CircuitBreaker + fallback</span>
+│   ├── <span class="new">tool_registry.py</span>       <span class="tag">← NEW: 동적 Tool Registry</span>
+│   ├── <span class="new">tracer.py</span>              <span class="tag">← NEW: 관측성 (로깅/타이밍)</span>
+│   └── <span class="new">auth.py</span>                <span class="tag">← NEW: 사용자 인증/권한</span>
+├── <span class="dir">graph/</span>
+│   ├── <span class="file">state.py</span>               <span class="tag">← UserContext, TraceEntry, StepResult 추가</span>
+│   ├── <span class="file">supervisor.py</span>          <span class="tag">[LLM]</span>
+│   ├── <span class="file">planner.py</span>             <span class="tag">[LLM] Registry 기반 하드가드</span>
+│   ├── <span class="file">memory.py</span>              <span class="tag">[CODE]</span>
+│   ├── <span class="file">executor.py</span>            <span class="tag">[CODE] + Step Guard</span>
+│   ├── <span class="new">replanner.py</span>           <span class="tag">← NEW [LLM] 중간 실패 재계획</span>
+│   ├── <span class="file">critic.py</span>              <span class="tag">[LLM] 구조화된 fix_instruction</span>
+│   ├── <span class="file">formatter.py</span>           <span class="tag">[LLM]</span>
+│   └── <span class="file">builder.py</span>             <span class="tag">← 그래프 조립</span>
+├── <span class="dir">tools/</span>
+│   ├── <span class="file">base.py</span>                <span class="tag">← Tool 추상 베이스</span>
+│   ├── <span class="dir">excel/</span>
+│   │   ├── <span class="file">structure_parser.py</span>
+│   │   └── <span class="file">schema_registry.py</span>
+│   ├── <span class="dir">mes/</span>
+│   │   └── <span class="file">query_tool.py</span>
+│   └── <span class="file">...</span>                    <span class="tag">← 새 Tool은 여기 + YAML 등록만</span>
+├── <span class="dir">config/</span>
+│   ├── <span class="new">tools.yaml</span>             <span class="tag">← NEW: Tool 메타데이터</span>
+│   ├── <span class="new">retry_strategies.yaml</span>  <span class="tag">← NEW: 그룹/에러별 재시도 전략</span>
+│   └── <span class="dir">excel_schemas/</span>
+│       ├── <span class="file">measurement_v1.json</span>
+│       └── <span class="file">mes_output_v2.json</span>
+└── <span class="dir new">tests/</span>                     <span class="tag">← NEW</span>
+    ├── <span class="new">test_planner.py</span>
+    ├── <span class="new">test_executor.py</span>
+    ├── <span class="new">test_critic.py</span>
+    └── <span class="new">conftest.py</span>            <span class="tag">← Mock LLM fixtures</span>
+    </div>
+  </section>
+
+  <!-- Comparison Table -->
+  <section>
+    <h2><span class="icon" style="background:rgba(248,113,113,0.15);">⇄</span> v3 → v4 비교</h2>
+    <div class="table-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th>v3</th>
+            <th>v4</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tool 목록</td>
+            <td class="v3">코드에 하드코딩</td>
+            <td class="v4">config/tools.yaml + 동적 Registry</td>
+          </tr>
+          <tr>
+            <td>선행조건 규칙</td>
+            <td class="v3">코드에 하드코딩</td>
+            <td class="v4">Registry에서 자동 생성</td>
+          </tr>
+          <tr>
+            <td>검증 시점</td>
+            <td class="v3">전체 실행 후 Critic만</td>
+            <td class="v4">매 스텝 후 Step Guard + 최종 Critic</td>
+          </tr>
+          <tr>
+            <td>중간 실패</td>
+            <td class="v3">전체 재실행</td>
+            <td class="v4">Replanner가 남은 플랜만 수정</td>
+          </tr>
+          <tr>
+            <td>Retry 전략</td>
+            <td class="v3">전역 하드코딩 (1→2→3)</td>
+            <td class="v4">툴별 retry_strategies in YAML</td>
+          </tr>
+          <tr>
+            <td>Executor LLM</td>
+            <td class="v3">retry 시 LLM 호출</td>
+            <td class="v4">retry에도 코드 레벨 (구조화 JSON)</td>
+          </tr>
+          <tr>
+            <td>State 크기</td>
+            <td class="v3">무한 누적</td>
+            <td class="v4">sliding window + 요약</td>
+          </tr>
+          <tr>
+            <td>관측성</td>
+            <td class="v3">없음</td>
+            <td class="v4">Tracer (노드별 로깅/타이밍)</td>
+          </tr>
+          <tr>
+            <td>멀티유저</td>
+            <td class="v3">없음</td>
+            <td class="v4">UserContext + 권한 체크</td>
+          </tr>
+          <tr>
+            <td>LLM 장애</td>
+            <td class="v3">전체 중단</td>
+            <td class="v4">CircuitBreaker + fallback LLM</td>
+          </tr>
+          <tr>
+            <td>테스트</td>
+            <td class="v3">없음</td>
+            <td class="v4">MockLLM + 노드 단위 테스트</td>
+          </tr>
+          <tr>
+            <td>MCP 전환</td>
+            <td class="v3">미고려</td>
+            <td class="v4">entry_point → MCP endpoint 교체 가능</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    Enterprise AI Agent v4.0 Architecture · 2026
+  </footer>
+
+</div>
+</body>
+</html>
