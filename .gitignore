@@ -1,0 +1,26 @@
+# 환경변수
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# IDE
+.cursor/
+.idea/
+.vscode/
+
+# 임시 파일
+*.tmp
+/tmp/
+
+# 압축 파일
+*.zip

@@ -1,45 +1,89 @@
 tools:
   - name: ExcelStructureParser
     group: excel
-    description: "엑셀 파일의 시트/행/열 구조를 파악합니다."
+    description: "엑셀 파일의 전체 구조를 파악합니다 (시트, 병합셀, 메모, 데이터 범위, 시작 위치). xls/xlsx 자동 감지, DRM 감지 포함."
     prerequisites: []
     retry_strategies:
       - adjust_parameters
+    required_permissions:
+      - excel:read
     entry_point: "enterprise_agent.tools.excel.structure_parser:excel_structure_parser"
 
   - name: HeaderDetector
     group: excel
-    description: "엑셀 시트에서 헤더 행/멀티헤더 정보를 감지합니다."
+    description: "엑셀 시트에서 헤더 행 위치와 테이블 타입(crosstable/database)을 감지합니다. 멀티헤더, 스타일 힌트 포함."
     prerequisites:
       - ExcelStructureParser
     retry_strategies:
       - adjust_parameters
+    required_permissions:
+      - excel:read
     entry_point: "enterprise_agent.tools.excel.header_detector:header_detector"
 
   - name: CrossTableFlattener
     group: excel
-    description: "크로스테이블을 행 기반 테이블로 평탄화합니다."
+    description: "크로스테이블 형태의 엑셀 데이터를 DB형(행-열 정규화)으로 변환합니다. source_cell 추적 포함."
     prerequisites:
       - ExcelStructureParser
       - HeaderDetector
     retry_strategies:
       - adjust_parameters
+    required_permissions:
+      - excel:read
     entry_point: "enterprise_agent.tools.excel.crosstable_flattener:crosstable_flattener"
 
   - name: OutlierDetector
     group: excel
-    description: "수치 데이터에서 이상값을 감지합니다."
+    description: "수치 데이터에서 IQR/Z-score 방식으로 이상값을 감지합니다. source_cell로 원본 위치 역추적 가능."
+    prerequisites:
+      - ExcelStructureParser
+      - HeaderDetector
+      - CrossTableFlattener
+    retry_strategies:
+      - adjust_parameters
+      - aggregate_only
+    required_permissions:
+      - excel:read
+    entry_point: "enterprise_agent.tools.excel.analysis_tools:outlier_detector"
+
+  - name: ExcelCompareTool
+    group: excel
+    description: "두 엑셀 파일의 변경사항을 비교합니다 (추가/삭제된 행, 변경된 셀)."
+    prerequisites: []
+    retry_strategies:
+      - adjust_parameters
+    required_permissions:
+      - excel:read
+    entry_point: "enterprise_agent.tools.excel.analysis_tools:excel_compare_tool"
+
+  - name: MESQueryTool
+    group: mes
+    description: "사내 MES에서 생산/품질 데이터를 조회합니다. 날짜 범위 필수 (최대 90일)."
+    prerequisites: []
+    retry_strategies:
+      - adjust_parameters
+    required_permissions:
+      - mes:query
+    entry_point: "enterprise_agent.tools.mes.mock_tools:mes_query_tool"
+
+  - name: MESDataFormatter
+    group: mes
+    description: "MES 조회 결과를 분석용 포맷으로 정제하고 집계합니다."
+    prerequisites:
+      - MESQueryTool
+    retry_strategies:
+      - adjust_parameters
+    required_permissions:
+      - mes:query
+    entry_point: "enterprise_agent.tools.mes.mock_tools:mes_data_formatter"
+
+  - name: ExcelRangeReader
+    group: excel
+    description: "엑셀의 특정 행/열 범위만 정밀하게 읽습니다. LLM이 구조 파악 후 필요한 범위를 지정해서 호출."
     prerequisites:
       - ExcelStructureParser
     retry_strategies:
       - adjust_parameters
-      - aggregate_only
-    entry_point: "enterprise_agent.tools.excel.outlier_detector:outlier_detector"
-
-  - name: ExcelCompareTool
-    group: excel
-    description: "두 엑셀 버전 간 추가/삭제/변경 내역을 비교합니다."
-    prerequisites: []
-    retry_strategies:
-      - adjust_parameters
-    entry_point: "enterprise_agent.tools.excel.compare_tool:excel_compare_tool"
+    required_permissions:
+      - excel:read
+    entry_point: "enterprise_agent.tools.excel.structure_parser:excel_range_reader"
