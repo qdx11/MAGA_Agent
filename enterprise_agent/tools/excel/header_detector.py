@@ -11,20 +11,50 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
 
-def _detect_header_rows(data_sample: list, header_hints: list) -> list:
+def _build_data_sample_from_row_index(row_index: list) -> list:
+    """
+    structure_parser의 row_index를 header_detector가 쓰던 data_sample 유사 형태로 복원.
+    preview만 존재하므로 각 행의 비어있지 않은 값 5개까지만 재구성한다.
+    """
+    if not row_index:
+        return []
+
+    max_cols = 0
+    for row in row_index:
+        first_col = row.get("first_col") or 1
+        preview = row.get("preview") or []
+        max_cols = max(max_cols, first_col - 1 + len(preview))
+
+    data_sample = []
+    for row in row_index:
+        reconstructed = [None] * max_cols
+        first_col = row.get("first_col")
+        preview = row.get("preview") or []
+        if first_col is not None:
+            start_idx = max(first_col - 1, 0)
+            for offset, value in enumerate(preview):
+                idx = start_idx + offset
+                if idx < len(reconstructed):
+                    reconstructed[idx] = value
+        data_sample.append(reconstructed)
+
+    return data_sample
+
+
+def _detect_header_rows(row_index: list, header_hints: list) -> list:
     """
     헤더 행 위치 감지.
     스타일 힌트(Bold/배경색) + 값 패턴으로 판단.
     """
-    if not data_sample:
+    if not row_index:
         return [0]
 
     header_rows = []
 
-    for i, (row, is_hint) in enumerate(zip(data_sample, header_hints)):
-        # 값이 없는 행 스킵
-        non_null = [v for v in row if v is not None and str(v).strip() != ""]
-        if not non_null:
+    for i, row_summary in enumerate(row_index):
+        is_hint = header_hints[i] if i < len(header_hints) else False
+
+        if row_summary.get("non_null_count", 0) <= 0:
             continue
 
         # 스타일 힌트가 있으면 헤더
@@ -34,16 +64,13 @@ def _detect_header_rows(data_sample: list, header_hints: list) -> list:
 
         # 첫 번째 행은 무조건 헤더 후보
         if i == 0:
-            # 전부 텍스트면 헤더
-            all_text = all(isinstance(v, str) for v in non_null)
-            if all_text:
+            if row_summary.get("value_type") == "text":
                 header_rows.append(i)
             continue
 
         # 이전 행이 헤더였고, 이번 행도 전부 텍스트면 멀티헤더
         if header_rows and i == header_rows[-1] + 1:
-            all_text = all(isinstance(v, str) for v in non_null)
-            if all_text:
+            if row_summary.get("value_type") == "text":
                 header_rows.append(i)
                 continue
 
@@ -84,7 +111,7 @@ def _detect_table_type(data_sample: list, header_rows: list) -> tuple:
     # 헤더 두 번째 열 이후가 날짜나 숫자면 크로스테이블 가능성
     numeric_or_date_header = sum(
         1 for v in header_values
-        if isinstance(v, (int, float)) or _looks_like_date(v)
+        if _looks_like_number(v) or _looks_like_date(v)
     )
     if header_values and numeric_or_date_header / len(header_values) > 0.5:
         score += 0.4
@@ -99,7 +126,7 @@ def _detect_table_type(data_sample: list, header_rows: list) -> tuple:
     # 데이터가 전부 숫자면 크로스테이블 가능성
     if first_data_row:
         numeric_data = [v for v in first_data_row[1:] if v is not None]
-        if numeric_data and all(isinstance(v, (int, float)) for v in numeric_data):
+        if numeric_data and all(_looks_like_number(v) for v in numeric_data):
             score += 0.2
             reasons.append("데이터가 전부 수치")
 
@@ -125,25 +152,85 @@ def _looks_like_date(value) -> bool:
     return any(re.search(p, s) for p in date_patterns)
 
 
-def _build_column_names(data_sample: list, header_rows: list) -> list:
+def _looks_like_number(value) -> bool:
+    """문자열로 들어온 수치도 숫자로 간주"""
+    if value is None:
+        return False
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return True
+    s = str(value).strip().replace(",", "")
+    if not s:
+        return False
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def _resolve_data_start_row(row_index: list, header_row_indices: list) -> int:
+    """
+    실제 데이터 시작 행 계산.
+    기존 data_start.row 대신 row_index의 첫 실제 행번호를 기준으로 잡되,
+    가능하면 마지막 헤더 다음의 실제 행 번호를 우선 사용한다.
+    """
+    if not row_index:
+        return 1
+
+    if not header_row_indices:
+        return row_index[0]["row"]
+
+    next_idx = header_row_indices[-1] + 1
+    if next_idx < len(row_index):
+        return row_index[next_idx]["row"]
+
+    first_row_num = row_index[0]["row"]
+    return first_row_num + len(header_row_indices)
+
+
+def _resolve_data_start_col(row_index: list, header_row_indices: list) -> int:
+    """헤더 구간의 시작 열을 data_start_col로 사용"""
+    if not row_index:
+        return 1
+
+    candidate_indices = header_row_indices or [0]
+    cols = [
+        row_index[idx].get("first_col")
+        for idx in candidate_indices
+        if idx < len(row_index) and row_index[idx].get("first_col") is not None
+    ]
+    if cols:
+        return min(cols)
+
+    return row_index[0].get("first_col") or 1
+
+
+def _build_column_names(data_sample: list, header_row_excel_nums: list) -> list:
     """
     멀티헤더를 하나의 컬럼명으로 합치기.
     예: ["대분류", "소분류"] → "대분류_소분류"
+    header_row_excel_nums: 실제 엑셀 행 번호 리스트 (1-based).
+    data_sample은 엑셀 1행부터 시작하므로 data_sample[row_num - 1]로 접근.
     """
-    if not header_rows or not data_sample:
+    if not header_row_excel_nums or not data_sample:
         return []
 
-    if len(header_rows) == 1:
-        row = data_sample[header_rows[0]]
+    # 유효한 행 번호만 필터 (data_sample 범위 내)
+    valid_nums = [n for n in header_row_excel_nums if 0 < n <= len(data_sample)]
+    if not valid_nums:
+        return []
+
+    if len(valid_nums) == 1:
+        row = data_sample[valid_nums[0] - 1]
         return [str(v) if v is not None else f"col_{i}" for i, v in enumerate(row)]
 
     # 멀티헤더: 각 열마다 헤더 행 값을 합침
-    num_cols = max(len(data_sample[i]) for i in header_rows)
+    num_cols = max(len(data_sample[n - 1]) for n in valid_nums)
     col_names = []
     for col_idx in range(num_cols):
         parts = []
-        for row_idx in header_rows:
-            row = data_sample[row_idx]
+        for row_num in valid_nums:
+            row = data_sample[row_num - 1]
             if col_idx < len(row) and row[col_idx] is not None:
                 val = str(row[col_idx]).strip()
                 if val and val not in parts:
@@ -210,22 +297,30 @@ def header_detector(excel_structure: str, sheet_name: Optional[str] = None) -> s
         else:
             sheet = sheets[0]
 
-        data_sample = sheet.get("data_sample", [])
-        header_hints = sheet.get("header_hints", [False] * len(data_sample))
+        row_index = sheet.get("row_index", [])
+        data_sample = sheet.get("data_sample") or _build_data_sample_from_row_index(row_index)
+        header_hints = sheet.get("header_hints", [False] * len(row_index or data_sample))
 
         # 헤더 감지
-        header_row_indices = _detect_header_rows(data_sample, header_hints)
+        header_row_indices = _detect_header_rows(row_index, header_hints)
+
+        # 실제 엑셀 행 번호 계산 (컬럼명 생성보다 먼저 필요)
+        if row_index:
+            actual_header_rows = [
+                row_index[i]["row"] for i in header_row_indices if i < len(row_index)
+            ]
+            actual_data_start_row = _resolve_data_start_row(row_index, header_row_indices)
+            data_start_col = _resolve_data_start_col(row_index, header_row_indices)
+        else:
+            actual_header_rows = [i + 1 for i in header_row_indices]
+            actual_data_start_row = len(header_row_indices) + 1
+            data_start_col = 1
 
         # 테이블 타입 감지
         table_type, confidence, reason = _detect_table_type(data_sample, header_row_indices)
 
-        # 컬럼명 생성
-        column_names = _build_column_names(data_sample, header_row_indices)
-
-        # 실제 행 번호 (data_start 기준)
-        data_start = sheet["data_start"]["row"]
-        actual_header_rows = [data_start + i - 1 for i in header_row_indices]
-        actual_data_start_row = data_start + len(header_row_indices)
+        # 컬럼명 생성 (actual_header_rows = 실제 엑셀 행번호, data_sample[row-1]로 접근)
+        column_names = _build_column_names(data_sample, actual_header_rows)
 
         return json.dumps({
             "status": "success",
@@ -239,7 +334,7 @@ def header_detector(excel_structure: str, sheet_name: Optional[str] = None) -> s
                 "table_type_confidence": round(confidence, 2),
                 "table_type_reason": reason,
                 "column_names": column_names,
-                "data_start_col": sheet["data_start"]["col"],
+                "data_start_col": data_start_col,
             }
         }, ensure_ascii=False)
 

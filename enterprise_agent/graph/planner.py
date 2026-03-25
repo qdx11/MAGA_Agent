@@ -87,6 +87,15 @@ def build_planner_prompt(state: AgentState) -> str:
 5. params는 현재 알 수 있는 정보만 포함하세요.
 6. "tool" 키 이름을 정확히 사용하세요. "tool_name", "name" 등 다른 키 이름 금지.
 
+[엑셀 분석 특별 규칙]
+- ExcelStructureParser 실행 후, 반환된 row_index를 직접 분석하여 헤더 구조를 판단하세요.
+- row_index의 각 행을 보고 결정:
+  * preview 값이 모두 동일 → 병합 타이틀 행 (헤더 아님)
+  * "작성부서:", "기준:", "담당자:" 등 메타 키워드 → 메타 행 (헤더 아님)
+  * 날짜("2024-01"), 항목명이 열마다 다양하게 있는 행 → 실제 헤더
+  * value_type이 "mixed"이고 숫자 포함 → 데이터 행
+- CrossTableFlattener 호출 시 header_rows, data_start_row, id_col_count를 직접 params에 포함하세요.
+
 [현재 파일 목록]
 {state.get('files', [])}
 

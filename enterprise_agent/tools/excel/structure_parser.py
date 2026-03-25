@@ -86,6 +86,36 @@ def _fill_merged_cells(ws) -> dict:
     return merged
 
 
+def _is_non_empty_cell(value) -> bool:
+    return value is not None and str(value).strip() != ""
+
+
+def _get_row_values(ws, merged_values: dict, excel_row: int) -> list:
+    row_values = []
+    for excel_col in range(1, ws.max_column + 1):
+        val = merged_values.get((excel_row, excel_col))
+        if val is None:
+            val = ws.cell(excel_row, excel_col).value
+        row_values.append(val)
+    return row_values
+
+
+def _build_data_sample(ws, merged_values: dict, max_rows: int = 10) -> list:
+    data_sample = []
+    for excel_row in range(1, min(ws.max_row, max_rows) + 1):
+        data_sample.append(_get_row_values(ws, merged_values, excel_row))
+    return data_sample
+
+
+def _find_data_start(ws, merged_values: dict) -> dict:
+    for excel_row in range(1, ws.max_row + 1):
+        row_values = _get_row_values(ws, merged_values, excel_row)
+        for excel_col, value in enumerate(row_values, start=1):
+            if _is_non_empty_cell(value):
+                return {"row": excel_row, "col": excel_col}
+    return {"row": 1, "col": 1}
+
+
 def _summarize_row(row_values: list) -> dict:
     """
     한 행 요약.
@@ -149,8 +179,10 @@ def excel_structure_parser(file_path: str) -> str:
     엑셀 파일이 있는 모든 요청의 시작점.
 
     [반환값]
-    JSON {status, data: {sheets: [{name, row_index, merged_cells, comments}]}}
+    JSON {status, data: {sheets: [{name, row_index, data_sample, data_start, merged_cells, comments}]}}
     row_index: 각 행의 행번호 + 값 요약 (LLM이 구조 판단용으로 사용)
+    data_sample: 시트 상단 최대 10행의 전체 셀 값
+    data_start: 시트에서 첫 번째 비어있지 않은 셀의 좌표
     """
     if ".." in file_path:
         return json.dumps({
@@ -180,17 +212,13 @@ def excel_structure_parser(file_path: str) -> str:
                         comments[coord] = cell.comment.text
 
             hidden_rows = [r for r, rd in ws.row_dimensions.items() if rd.hidden]
+            data_sample = _build_data_sample(ws, merged_values, max_rows=10)
+            data_start = _find_data_start(ws, merged_values)
 
             # 핵심: 전체 행 스캔 → 행별 요약
             row_index = []
             for excel_row in range(1, ws.max_row + 1):
-                row_values = []
-                for excel_col in range(1, ws.max_column + 1):
-                    val = merged_values.get((excel_row, excel_col))
-                    if val is None:
-                        val = ws.cell(excel_row, excel_col).value
-                    row_values.append(val)
-
+                row_values = _get_row_values(ws, merged_values, excel_row)
                 summary = _summarize_row(row_values)
                 if summary["non_null_count"] > 0:
                     row_index.append({"row": excel_row, **summary})
@@ -200,6 +228,8 @@ def excel_structure_parser(file_path: str) -> str:
                 "max_row": ws.max_row,
                 "max_col": ws.max_column,
                 "row_index": row_index,
+                "data_sample": data_sample,
+                "data_start": data_start,
                 "merged_cells": [str(r) for r in ws.merged_cells.ranges],
                 "comments": comments,
                 "hidden_rows": hidden_rows[:20],

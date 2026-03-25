@@ -1,7 +1,7 @@
 tools:
   - name: ExcelStructureParser
     group: excel
-    description: "엑셀 파일의 전체 구조를 파악합니다 (시트, 병합셀, 메모, 데이터 범위, 시작 위치). xls/xlsx 자동 감지, DRM 감지 포함."
+    description: "엑셀 파일의 전체 구조를 파악합니다 (시트, 병합셀, 메모, 데이터 범위). xls/xlsx 자동 감지, DRM 감지 포함. 반환된 row_index를 LLM이 직접 분석하여 header_rows, data_start_row, table_type, id_col_count를 결정해야 함."
     prerequisites: []
     retry_strategies:
       - adjust_parameters
@@ -9,23 +9,11 @@ tools:
       - excel:read
     entry_point: "enterprise_agent.tools.excel.structure_parser:excel_structure_parser"
 
-  - name: HeaderDetector
-    group: excel
-    description: "엑셀 시트에서 헤더 행 위치와 테이블 타입(crosstable/database)을 감지합니다. 멀티헤더, 스타일 힌트 포함."
-    prerequisites:
-      - ExcelStructureParser
-    retry_strategies:
-      - adjust_parameters
-    required_permissions:
-      - excel:read
-    entry_point: "enterprise_agent.tools.excel.header_detector:header_detector"
-
   - name: CrossTableFlattener
     group: excel
-    description: "크로스테이블 형태의 엑셀 데이터를 DB형(행-열 정규화)으로 변환합니다. source_cell 추적 포함."
+    description: "크로스테이블 형태의 엑셀 데이터를 DB형(행-열 정규화)으로 변환합니다. source_cell 추적 포함. ExcelStructureParser 실행 후 LLM이 결정한 header_rows, data_start_row, id_col_count를 직접 파라미터로 전달해야 함."
     prerequisites:
       - ExcelStructureParser
-      - HeaderDetector
     retry_strategies:
       - adjust_parameters
     required_permissions:
@@ -37,7 +25,6 @@ tools:
     description: "수치 데이터에서 IQR/Z-score 방식으로 이상값을 감지합니다. source_cell로 원본 위치 역추적 가능."
     prerequisites:
       - ExcelStructureParser
-      - HeaderDetector
       - CrossTableFlattener
     retry_strategies:
       - adjust_parameters
@@ -76,6 +63,17 @@ tools:
     required_permissions:
       - mes:query
     entry_point: "enterprise_agent.tools.mes.mock_tools:mes_data_formatter"
+
+  - name: DatabaseTableReader
+    group: excel
+    description: "일반 DB형(행-열) 구조 엑셀을 레코드 리스트로 읽습니다. 크로스테이블이 아닌 일반 보고서/조회 테이블에 사용. ExcelStructureParser 후 LLM이 결정한 header_rows, data_start_row를 직접 전달."
+    prerequisites:
+      - ExcelStructureParser
+    retry_strategies:
+      - adjust_parameters
+    required_permissions:
+      - excel:read
+    entry_point: "enterprise_agent.tools.excel.database_reader:database_table_reader"
 
   - name: ExcelRangeReader
     group: excel
