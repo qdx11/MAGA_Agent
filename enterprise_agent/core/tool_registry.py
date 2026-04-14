@@ -1,5 +1,6 @@
 from __future__ import annotations
 import importlib
+import threading
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 import yaml
@@ -97,11 +98,14 @@ class ToolRegistry:
         return any(p in user_permissions for p in required)
 
 
-# 싱글톤
+# 싱글톤 (스레드 안전)
 _registry: Optional[ToolRegistry] = None
+_registry_lock = threading.Lock()
 
 def get_registry(config_path: Optional[str] = None) -> ToolRegistry:
     global _registry
     if _registry is None:
-        _registry = ToolRegistry(config_path)
+        with _registry_lock:
+            if _registry is None:  # double-checked locking
+                _registry = ToolRegistry(config_path)
     return _registry
