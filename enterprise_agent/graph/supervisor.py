@@ -3,6 +3,7 @@ import json
 from langchain_core.messages import SystemMessage, HumanMessage
 from enterprise_agent.graph.state import AgentState
 from enterprise_agent.core.tracer import Tracer
+from enterprise_agent.graph.json_utils import extract_json
 
 SUPERVISOR_PROMPT = """당신은 사내 AI 에이전트의 Supervisor입니다.
 사용자 메시지를 분석하여 intent를 JSON으로 반환하세요.
@@ -28,20 +29,19 @@ SUPERVISOR_PROMPT = """당신은 사내 AI 에이전트의 Supervisor입니다.
 
 def supervisor_node(state: AgentState, llm, tracer: Tracer) -> AgentState:
     with tracer.span("supervisor", state["messages"][-1].content[:50]) as span:
-        response = llm.invoke([
-            SystemMessage(content=SUPERVISOR_PROMPT),
-            HumanMessage(content=state["messages"][-1].content),
-        ])
-
         try:
-            result = json.loads(response.content)
+            response = llm.invoke([
+                SystemMessage(content=SUPERVISOR_PROMPT),
+                HumanMessage(content=state["messages"][-1].content),
+            ])
+            result = extract_json(response.content)
             intent = result.get("intent", "unknown")
         except Exception:
-            # JSON 파싱 실패 시 텍스트에서 intent 추출 시도
-            content = response.content.lower()
-            if "excel" in content or "엑셀" in content:
+            # LLM 호출 실패 또는 JSON 파싱 실패 시 키워드로 fallback
+            raw = getattr(response, "content", state["messages"][-1].content).lower()
+            if "excel" in raw or "엑셀" in raw:
                 intent = "excel_analysis"
-            elif "mes" in content:
+            elif "mes" in raw:
                 intent = "mes_query"
             else:
                 intent = "unknown"

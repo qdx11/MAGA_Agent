@@ -184,7 +184,10 @@ def excel_structure_parser(file_path: str) -> str:
     data_sample: 시트 상단 최대 10행의 전체 셀 값
     data_start: 시트에서 첫 번째 비어있지 않은 셀의 좌표
     """
-    if ".." in file_path:
+    import os as _os
+    _real = _os.path.realpath(file_path)
+    _abs = _os.path.abspath(file_path)
+    if _real != _abs or ".." in _os.path.normpath(file_path).split(_os.sep):
         return json.dumps({
             "status": "error",
             "error_code": "PATH_TRAVERSAL",

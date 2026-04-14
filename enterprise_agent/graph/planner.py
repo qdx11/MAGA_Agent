@@ -1,9 +1,13 @@
 from __future__ import annotations
 import json
+import logging
 from langchain_core.messages import SystemMessage, HumanMessage
 from enterprise_agent.graph.state import AgentState
 from enterprise_agent.core.tool_registry import get_registry
 from enterprise_agent.core.tracer import Tracer
+from enterprise_agent.graph.json_utils import extract_json
+
+logger = logging.getLogger(__name__)
 
 
 class PlanValidationError(Exception):
@@ -129,16 +133,10 @@ def planner_node(state: AgentState, llm, tracer: Tracer) -> AgentState:
                     )),
                 ])
 
-                # JSON 파싱 (```json 블록 처리)
-                content = response.content.strip()
-                if "```" in content:
-                    content = content.split("```")[1]
-                    if content.startswith("json"):
-                        content = content[4:]
-                plan = json.loads(content.strip())
+                plan = extract_json(response.content)
                 plan["current_step"] = 0
 
-                print("LLM 플랜 결과:", json.dumps(plan, ensure_ascii=False, indent=2))
+                logger.debug("LLM 플랜 결과: %s", json.dumps(plan, ensure_ascii=False))
                 validate_plan(plan)
                 span["output_summary"] = f"steps={plan['total_steps']}"
 

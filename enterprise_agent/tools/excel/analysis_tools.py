@@ -212,8 +212,11 @@ def excel_compare_tool(
     try:
         import pandas as pd
 
+        import os as _os
         for fp in [base_file, target_file]:
-            if ".." in fp:
+            _real = _os.path.realpath(fp)
+            _abs = _os.path.abspath(fp)
+            if _real != _abs or ".." in _os.path.normpath(fp).split(_os.sep):
                 return json.dumps({
                     "status": "error",
                     "error_code": "PATH_TRAVERSAL",

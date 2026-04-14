@@ -4,6 +4,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from enterprise_agent.graph.state import AgentState, CriticFeedback
 from enterprise_agent.core.tool_registry import get_registry
 from enterprise_agent.core.tracer import Tracer
+from enterprise_agent.graph.json_utils import extract_json
 
 
 # ══════════════════════════════════════════════════════
@@ -106,12 +107,7 @@ def replanner_node(state: AgentState, llm, tracer: Tracer) -> AgentState:
                     SystemMessage(content=REPLANNER_PROMPT),
                     HumanMessage(content=prompt),
                 ])
-                content = response.content.strip()
-                if "```" in content:
-                    content = content.split("```")[1]
-                    if content.startswith("json"):
-                        content = content[4:]
-                new_plan = json.loads(content.strip())
+                new_plan = extract_json(response.content)
                 new_steps = new_plan["steps"]
                 span["output_summary"] = f"strategy={strategy} new_steps={len(new_steps)}"
             except Exception as e:
@@ -183,18 +179,12 @@ def critic_node(state: AgentState, llm, tracer: Tracer) -> AgentState:
 재시도 횟수: {state['retry_count']}
 파일: {state.get('files', [])}"""
 
-        response = llm.invoke([
-            SystemMessage(content=CRITIC_PROMPT),
-            HumanMessage(content=context),
-        ])
-
         try:
-            content = response.content.strip()
-            if "```" in content:
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
-            feedback: CriticFeedback = json.loads(content.strip())
+            response = llm.invoke([
+                SystemMessage(content=CRITIC_PROMPT),
+                HumanMessage(content=context),
+            ])
+            feedback: CriticFeedback = extract_json(response.content)
         except Exception:
             # 파싱 실패 시 기본값 (통과)
             feedback = CriticFeedback(
@@ -249,12 +239,14 @@ def formatter_node(state: AgentState, llm, tracer: Tracer) -> AgentState:
 {json.dumps(tool_results, ensure_ascii=False, default=str)[:4000]}
 Critic 평가: {json.dumps(state.get('critic_feedback', {}), ensure_ascii=False)}"""
 
-        response = llm.invoke([
-            SystemMessage(content=FORMATTER_PROMPT),
-            HumanMessage(content=context),
-        ])
-
-        final_answer = response.content
+        try:
+            response = llm.invoke([
+                SystemMessage(content=FORMATTER_PROMPT),
+                HumanMessage(content=context),
+            ])
+            final_answer = response.content
+        except Exception as e:
+            final_answer = f"답변 생성 중 오류가 발생했습니다: {e}"
         span["output_summary"] = f"{len(final_answer)}chars"
 
         return {**state, "final_answer": final_answer}

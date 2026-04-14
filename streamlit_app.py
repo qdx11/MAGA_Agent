@@ -243,8 +243,14 @@ if prompt := st.chat_input("질문을 입력하세요..."):
 
                 full_msg = f"[파일 구조 정보 — 이미 파싱 완료]\n{ctx}\n\n[사용자 질문]\n{prompt}"
 
-                llm = create_llm()
-                graph, tracer = build_graph(llm, session_id="streamlit")
+                if "llm" not in st.session_state:
+                    st.session_state.llm = create_llm()
+                if "graph" not in st.session_state:
+                    st.session_state.graph, st.session_state.tracer = build_graph(
+                        st.session_state.llm, session_id="streamlit"
+                    )
+                graph = st.session_state.graph
+                tracer = st.session_state.tracer
 
                 state = make_default_state(
                     message=full_msg,
