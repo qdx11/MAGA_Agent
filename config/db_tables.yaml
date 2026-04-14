@@ -1,21 +1,26 @@
 # DynamoDB 테이블 설정
-# table_name: DynamoDB 테이블명
-# custom_columns: 조회할 컬럼 목록 (Excel 참고해서 채워넣기)
-# time_column: 시간 조건 컬럼명 (없으면 생략)
-# default_hours: 기본 조회 범위 (시간 단위, 없으면 생략)
+# table_name      : DynamoDB 테이블명
+# description     : 테이블 설명 (에이전트가 어떤 테이블 쓸지 판단하는 데 사용)
+# custom_columns  : 조회할 컬럼 목록
+# partition_columns: 파티션 키 컬럼 목록 (DynamoDB 인덱스 기준)
+# time_column     : 시간 조건 컬럼명 (없으면 생략)
+# default_hours   : 사용자가 시간 미언급 시 기본 조회 범위 (없으면 생략)
 
 tables:
   - table_name: "REPLACE_WITH_TABLE_NAME"
-    description: "테이블 설명"
+    description: "테이블 설명 — 에이전트가 질문 매핑에 사용하므로 구체적으로"
     custom_columns:
       - "col1"
       - "col2"
+    partition_columns:
+      - "partition_key_col"
     time_column: "receive_ymdhms"   # 시간 조건 컬럼 (없으면 이 줄 삭제)
-    default_hours: 5                # 기본 조회 시간 범위 (없으면 이 줄 삭제)
+    default_hours: 5                # 시간 미언급 시 기본 범위 (없으면 이 줄 삭제)
 
-  # 아래에 테이블 계속 추가 (Excel 참고)
+  # 아래에 테이블 계속 추가
   # - table_name: "..."
   #   description: "..."
   #   custom_columns: [...]
-  #   time_column: "..."
-  #   default_hours: 24
+  #   partition_columns: [...]
+  #   time_column: "..."        # 선택
+  #   default_hours: 24         # 선택

@@ -119,6 +119,7 @@ def list_available_tables() -> str:
                 "table_name": name,
                 "description": cfg.get("description", ""),
                 "columns": cfg.get("custom_columns", []),
+                "partition_columns": cfg.get("partition_columns", []),
                 "time_column": cfg.get("time_column"),
                 "default_hours": cfg.get("default_hours"),
             }
