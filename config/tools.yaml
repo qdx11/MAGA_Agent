@@ -43,6 +43,26 @@ tools:
       - excel:read
     entry_point: "enterprise_agent.tools.excel.analysis_tools:excel_compare_tool"
 
+  - name: DynamoDBListTables
+    group: mes
+    description: "사내 DynamoDB에 등록된 테이블 목록과 검색 가능한 컬럼 정보를 조회합니다. 어떤 테이블을 써야 할지 모를 때 먼저 호출."
+    prerequisites: []
+    retry_strategies: []
+    required_permissions:
+      - mes:query
+    entry_point: "enterprise_agent.tools.mes.dynamodb_search:list_available_tables"
+
+  - name: DynamoDBSearch
+    group: mes
+    description: "사내 DynamoDB 테이블을 검색합니다. table_name(필수), conditions(선택), hours(선택). 시간 범위가 있는 테이블은 자동으로 기본 시간 조건 적용."
+    prerequisites:
+      - DynamoDBListTables
+    retry_strategies:
+      - adjust_parameters
+    required_permissions:
+      - mes:query
+    entry_point: "enterprise_agent.tools.mes.dynamodb_search:dynamodb_search"
+
   - name: MESQueryTool
     group: mes
     description: "사내 MES에서 생산/품질 데이터를 조회합니다. 날짜 범위 필수 (최대 90일)."

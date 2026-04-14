@@ -1,0 +1,21 @@
+# DynamoDB 테이블 설정
+# table_name: DynamoDB 테이블명
+# custom_columns: 조회할 컬럼 목록 (Excel 참고해서 채워넣기)
+# time_column: 시간 조건 컬럼명 (없으면 생략)
+# default_hours: 기본 조회 범위 (시간 단위, 없으면 생략)
+
+tables:
+  - table_name: "REPLACE_WITH_TABLE_NAME"
+    description: "테이블 설명"
+    custom_columns:
+      - "col1"
+      - "col2"
+    time_column: "receive_ymdhms"   # 시간 조건 컬럼 (없으면 이 줄 삭제)
+    default_hours: 5                # 기본 조회 시간 범위 (없으면 이 줄 삭제)
+
+  # 아래에 테이블 계속 추가 (Excel 참고)
+  # - table_name: "..."
+  #   description: "..."
+  #   custom_columns: [...]
+  #   time_column: "..."
+  #   default_hours: 24
