@@ -6,6 +6,7 @@ from enterprise_agent.graph.state import AgentState
 from enterprise_agent.core.tool_registry import get_registry
 from enterprise_agent.core.tracer import Tracer
 from enterprise_agent.graph.json_utils import extract_json
+from enterprise_agent.core.context_loader import inject
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +127,7 @@ def planner_node(state: AgentState, llm, tracer: Tracer) -> AgentState:
                     full_prompt += f"\n\n[이전 오류 수정 필요]: {last_error}"
 
                 response = llm.invoke([
-                    SystemMessage(content=full_prompt),
+                    SystemMessage(content=inject(full_prompt)),
                     HumanMessage(content=(
                         f"intent: {state['intent']}\n"
                         f"사용자 요청: {state['messages'][-1].content}"

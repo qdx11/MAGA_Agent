@@ -4,6 +4,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from enterprise_agent.graph.state import AgentState
 from enterprise_agent.core.tracer import Tracer
 from enterprise_agent.graph.json_utils import extract_json
+from enterprise_agent.core.context_loader import inject
 
 SUPERVISOR_PROMPT = """당신은 사내 AI 에이전트의 Supervisor입니다.
 사용자 메시지를 분석하여 intent를 JSON으로 반환하세요.
@@ -31,7 +32,7 @@ def supervisor_node(state: AgentState, llm, tracer: Tracer) -> AgentState:
     with tracer.span("supervisor", state["messages"][-1].content[:50]) as span:
         try:
             response = llm.invoke([
-                SystemMessage(content=SUPERVISOR_PROMPT),
+                SystemMessage(content=inject(SUPERVISOR_PROMPT)),
                 HumanMessage(content=state["messages"][-1].content),
             ])
             result = extract_json(response.content)

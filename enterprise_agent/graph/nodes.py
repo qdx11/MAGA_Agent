@@ -5,6 +5,7 @@ from enterprise_agent.graph.state import AgentState, CriticFeedback
 from enterprise_agent.core.tool_registry import get_registry
 from enterprise_agent.core.tracer import Tracer
 from enterprise_agent.graph.json_utils import extract_json
+from enterprise_agent.core.context_loader import inject
 
 
 # ══════════════════════════════════════════════════════
@@ -104,7 +105,7 @@ def replanner_node(state: AgentState, llm, tracer: Tracer) -> AgentState:
 위 전략을 반영하여 남은 스텝을 재구성하세요."""
 
                 response = llm.invoke([
-                    SystemMessage(content=REPLANNER_PROMPT),
+                    SystemMessage(content=inject(REPLANNER_PROMPT)),
                     HumanMessage(content=prompt),
                 ])
                 new_plan = extract_json(response.content)
@@ -181,7 +182,7 @@ def critic_node(state: AgentState, llm, tracer: Tracer) -> AgentState:
 
         try:
             response = llm.invoke([
-                SystemMessage(content=CRITIC_PROMPT),
+                SystemMessage(content=inject(CRITIC_PROMPT)),
                 HumanMessage(content=context),
             ])
             feedback: CriticFeedback = extract_json(response.content)
@@ -241,7 +242,7 @@ Critic 평가: {json.dumps(state.get('critic_feedback', {}), ensure_ascii=False)
 
         try:
             response = llm.invoke([
-                SystemMessage(content=FORMATTER_PROMPT),
+                SystemMessage(content=inject(FORMATTER_PROMPT)),
                 HumanMessage(content=context),
             ])
             final_answer = response.content
