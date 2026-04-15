@@ -10,6 +10,7 @@ SUPERVISOR_PROMPT = """당신은 사내 AI 에이전트의 Supervisor입니다.
 사용자 메시지를 분석하여 intent를 JSON으로 반환하세요.
 
 [Intent 종류]
+- general_chat     : 인사, 잡담, 시스템 질문, 도움말 요청 등 툴이 필요 없는 일반 대화
 - excel_analysis   : 엑셀 파일 분석 (통계, 이상값, 트렌드)
 - excel_compare    : 두 엑셀 파일 버전 비교
 - excel_read       : 엑셀 파일 내용 읽기/질문 답변
@@ -18,14 +19,11 @@ SUPERVISOR_PROMPT = """당신은 사내 AI 에이전트의 Supervisor입니다.
 - rag              : 문서 검색 및 Q&A
 - unknown          : 판단 불가
 
-[반환 형식] JSON만:
-{
-  "intent": "excel_analysis",
-  "confidence": 0.95,
-  "reasoning": "사용자가 엑셀 파일 분석을 요청함",
-  "files_needed": true,
-  "key_entities": ["이상값", "측정 데이터"]
-}"""
+[출력 규칙] — 반드시 준수
+- 반드시 raw JSON만 반환하세요. 설명 텍스트, 마크다운, 코드블록(```) 절대 금지.
+- 첫 글자가 { 이어야 합니다.
+
+{"intent": "general_chat", "confidence": 0.95, "reasoning": "인사말", "files_needed": false, "key_entities": []}"""
 
 
 def supervisor_node(state: AgentState, llm, tracer: Tracer) -> AgentState:

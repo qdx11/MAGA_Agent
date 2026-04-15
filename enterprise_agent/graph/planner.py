@@ -92,6 +92,7 @@ def build_planner_prompt(state: AgentState) -> str:
 5. params는 현재 알 수 있는 정보만 포함하세요.
 6. "tool" 키 이름을 정확히 사용하세요. "tool_name", "name" 등 다른 키 이름 금지.
 7. 인사말, 잡담, 일반 질문 등 툴이 필요 없는 경우 steps를 빈 배열로 반환하세요: {{"steps": [], "total_steps": 0}}
+8. 반드시 raw JSON만 반환하세요. 설명 텍스트, 마크다운, 코드블록(```) 절대 금지. 첫 글자가 {{ 이어야 합니다.
 
 [엑셀 분석 특별 규칙]
 - ExcelStructureParser 실행 후, 반환된 row_index를 직접 분석하여 헤더 구조를 판단하세요.
