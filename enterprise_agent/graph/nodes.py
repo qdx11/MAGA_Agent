@@ -20,6 +20,18 @@ def step_guard(state: AgentState) -> str:
     if state.get("early_stopped"):
         return "formatter"
 
+    plan = state.get("plan", {})
+    total_steps = plan.get("total_steps", 0)
+    current_step = state.get("current_step", 0)
+
+    # 플랜이 없거나 스텝이 0개 → 바로 formatter (일반 대화)
+    if total_steps == 0:
+        return "formatter"
+
+    # 모든 스텝 완료 → critic
+    if current_step >= total_steps:
+        return "critic"
+
     tool_results = state.get("tool_results", [])
     if not tool_results:
         return "executor"
@@ -27,7 +39,6 @@ def step_guard(state: AgentState) -> str:
     last = tool_results[-1]
 
     if last["status"] == "error":
-        error_code = last["result"].get("error_code", "")
         early_stop = last["result"].get("early_stop", False)
 
         if early_stop:
@@ -38,11 +49,6 @@ def step_guard(state: AgentState) -> str:
             return "formatter"
 
         return "replanner"
-
-    # 모든 스텝 완료
-    plan = state.get("plan", {})
-    if state["current_step"] >= plan.get("total_steps", 0):
-        return "critic"
 
     return "executor"
 
@@ -222,6 +228,7 @@ FORMATTER_PROMPT = """당신은 AI 에이전트의 Formatter입니다.
 툴 실행 결과를 사용자가 이해하기 쉬운 자연어 답변으로 정리하세요.
 
 규칙:
+- 툴 실행 결과가 없으면 (일반 대화) 사용자 질문에 자연스럽게 직접 답변하세요.
 - 수치는 소수점 2자리까지
 - 이상값은 별도 강조
 - 표 형태로 정리할 수 있으면 마크다운 표 사용
